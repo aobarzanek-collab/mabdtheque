@@ -42,6 +42,11 @@ import kotlin.math.roundToInt
 
 private enum class Corner { TopLeft, TopRight, BottomLeft, BottomRight }
 
+private fun rotateBitmap(source: Bitmap, degrees: Float): Bitmap {
+    val matrix = android.graphics.Matrix().apply { postRotate(degrees) }
+    return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+}
+
 private fun moveCorner(
     rect: Rect, corner: Corner, drag: Offset, bounds: Rect, minSize: Float
 ): Rect {
@@ -76,11 +81,13 @@ fun CropScreen(
     onDone: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    val bitmap = remember(path) { BitmapFactory.decodeFile(path) }
-    if (bitmap == null) {
+    val initialBitmap = remember(path) { BitmapFactory.decodeFile(path) }
+    if (initialBitmap == null) {
         onCancel()
         return
     }
+    var bitmap by remember(path) { mutableStateOf(initialBitmap) }
+    var rotation by remember(path) { mutableStateOf(0f) }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(Color.Black)
@@ -96,7 +103,7 @@ fun CropScreen(
         val imageRect = Rect(imgLeft, imgTop, imgLeft + imgW, imgTop + imgH)
         val minCrop = with(density) { 40.dp.toPx() }
 
-        var crop by remember(path) {
+        var crop by remember(path, bitmap) {
             mutableStateOf(
                 Rect(
                     imageRect.left + imgW * 0.06f,
@@ -137,7 +144,7 @@ fun CropScreen(
                     with(density) { crop.width.toDp() },
                     with(density) { crop.height.toDp() }
                 )
-                .pointerInput(crop) {
+                .pointerInput(path, bitmap) {
                     detectDragGestures { change, drag ->
                         change.consume()
                         crop = moveRect(crop, drag, imageRect)
@@ -165,7 +172,7 @@ fun CropScreen(
                     .size(28.dp)
                     .clip(CircleShape)
                     .background(Color.White)
-                    .pointerInput(c) {
+                    .pointerInput(c, path, bitmap) {
                         detectDragGestures { change, drag ->
                             change.consume()
                             crop = moveCorner(crop, c, drag, imageRect, minCrop)
@@ -174,30 +181,43 @@ fun CropScreen(
             )
         }
 
-        Row(
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(onClick = onCancel) { Text("Annuler") }
-            Button(
-                onClick = {
-                    val l = ((crop.left - imgLeft) / scale).roundToInt()
-                        .coerceIn(0, bitmap.width - 1)
-                    val t = ((crop.top - imgTop) / scale).roundToInt()
-                        .coerceIn(0, bitmap.height - 1)
-                    val r = ((crop.right - imgLeft) / scale).roundToInt()
-                        .coerceIn(l + 1, bitmap.width)
-                    val b = ((crop.bottom - imgTop) / scale).roundToInt()
-                        .coerceIn(t + 1, bitmap.height)
-                    val cropped = Bitmap.createBitmap(bitmap, l, t, r - l, b - t)
-                    File(path).outputStream().use { out ->
-                        cropped.compress(Bitmap.CompressFormat.JPEG, 92, out)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = {
+                    bitmap = rotateBitmap(bitmap, -90f)
+                    rotation -= 90f
+                }) { Text("⟲ Pivoter gauche") }
+                OutlinedButton(onClick = {
+                    bitmap = rotateBitmap(bitmap, 90f)
+                    rotation += 90f
+                }) { Text("Pivoter droite ⟳") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedButton(onClick = onCancel) { Text("Annuler") }
+                Button(
+                    onClick = {
+                        val l = ((crop.left - imgLeft) / scale).roundToInt()
+                            .coerceIn(0, bitmap.width - 1)
+                        val t = ((crop.top - imgTop) / scale).roundToInt()
+                            .coerceIn(0, bitmap.height - 1)
+                        val r = ((crop.right - imgLeft) / scale).roundToInt()
+                            .coerceIn(l + 1, bitmap.width)
+                        val b = ((crop.bottom - imgTop) / scale).roundToInt()
+                            .coerceIn(t + 1, bitmap.height)
+                        val cropped = Bitmap.createBitmap(bitmap, l, t, r - l, b - t)
+                        File(path).outputStream().use { out ->
+                            cropped.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                        }
+                        onDone(path)
                     }
-                    onDone(path)
-                }
-            ) { Text("Valider le recadrage") }
+                ) { Text("Valider le recadrage") }
+            }
         }
     }
 }
