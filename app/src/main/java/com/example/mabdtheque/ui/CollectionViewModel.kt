@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.mabdtheque.data.Album
 import com.example.mabdtheque.data.AlbumRepository
 import com.example.mabdtheque.lookup.IsbnLookup
+import com.example.mabdtheque.lookup.LookupResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,9 +42,8 @@ class CollectionViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun repositoryAll(): List<Album> = repository.allOnce()
 
-    fun lookupIsbn(isbn: String, onResult: (String, Int?) -> Unit) =
+    fun lookupIsbn(isbn: String, onResult: (LookupResult?) -> Unit) =
         viewModelScope.launch {
-            val result = IsbnLookup.lookup(isbn)
-            onResult(result?.title ?: "", result?.year)
+            onResult(IsbnLookup.lookup(isbn))
         }
 }

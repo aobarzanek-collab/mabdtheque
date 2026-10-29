@@ -11,8 +11,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.mabdtheque.camera.CoverPhotoScreen
+import com.example.mabdtheque.camera.CropScreen
 import com.example.mabdtheque.data.Album
 import com.example.mabdtheque.export.CsvExporter
+import com.example.mabdtheque.lookup.LookupResult
 import com.example.mabdtheque.scanner.BarcodeScannerScreen
 import com.example.mabdtheque.ui.AlbumEditScreen
 import com.example.mabdtheque.ui.AlbumListScreen
@@ -23,6 +25,7 @@ private sealed interface Screen {
     data object List : Screen
     data object ScanIsbn : Screen
     data object TakePhoto : Screen
+    data class Crop(val photoPath: String) : Screen
     data class Edit(val albumId: Long?) : Screen
 }
 
@@ -67,14 +70,28 @@ class MainActivity : ComponentActivity() {
                 Screen.TakePhoto -> {
                     CoverPhotoScreen(
                         onPhotoTaken = { _, path ->
-                            draft = (draft ?: Album()).copy(coverPhotoPath = path)
-                            screen = Screen.Edit(draft?.id)
+                            screen = Screen.Crop(path)
                         },
                         onClose = { screen = Screen.Edit(draft?.id) }
                     )
                 }
 
+                is Screen.Crop -> {
+                    CropScreen(
+                        path = current.photoPath,
+                        onDone = { path ->
+                            draft = (draft ?: Album()).copy(coverPhotoPath = path)
+                            screen = Screen.Edit(draft?.id)
+                        },
+                        onCancel = {
+                            screen = Screen.Edit(draft?.id)
+                        }
+                    )
+                }
+
                 is Screen.Edit -> {
+                    val doLookup: (String, (LookupResult?) -> Unit) -> Unit =
+                        { isbn, cb -> collectionViewModel.lookupIsbn(isbn, cb) }
                     LaunchedEffect(current.albumId) {
                         if (draft == null && current.albumId != null) {
                             screen = Screen.List
@@ -87,6 +104,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onScanIsbn = { screen = Screen.ScanIsbn },
                         onTakePhoto = { screen = Screen.TakePhoto },
+                        onLookupIsbn = doLookup,
                         onBack = { screen = Screen.List }
                     )
                 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.mabdtheque.data.Album
+import com.example.mabdtheque.lookup.LookupResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +44,7 @@ fun AlbumEditScreen(
     onSave: (Album) -> Unit,
     onScanIsbn: () -> Unit,
     onTakePhoto: () -> Unit,
+    onLookupIsbn: (String, (LookupResult?) -> Unit) -> Unit,
     onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf(initial?.seriesTitle ?: "") }
@@ -57,6 +59,8 @@ fun AlbumEditScreen(
     }
     var isbn by remember { mutableStateOf(initial?.isbn ?: "") }
     var signed by remember { mutableStateOf(initial?.isSigned ?: false) }
+    var lookupBusy by remember { mutableStateOf(false) }
+    var lookupError by remember { mutableStateOf(false) }
     var notes by remember { mutableStateOf(initial?.notes ?: "") }
     var coverPath by remember { mutableStateOf(initial?.coverPhotoPath) }
 
@@ -87,6 +91,40 @@ fun AlbumEditScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 OutlinedButton(onClick = onScanIsbn) { Text("Scanner") }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = {
+                        if (isbn.isNotBlank()) {
+                            lookupBusy = true
+                            lookupError = false
+                            onLookupIsbn(isbn.trim()) { result ->
+                                lookupBusy = false
+                                if (result == null) {
+                                    lookupError = true
+                                } else {
+                                    if (result.title.isNotBlank() && title.isBlank()) {
+                                        title = result.title
+                                    }
+                                    if (result.authors.isNotEmpty() && author.isBlank()) {
+                                        author = result.authors.first()
+                                    }
+                                    result.year?.let { y -> if (year.isBlank()) year = y.toString() }
+                                }
+                            }
+                        }
+                    },
+                    enabled = isbn.isNotBlank() && !lookupBusy
+                ) { Text(if (lookupBusy) "Recherche…" else "Rechercher les infos") }
+                if (lookupError) {
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Introuvable : complétez à la main",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
