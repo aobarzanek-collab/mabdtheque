@@ -1,5 +1,6 @@
 package com.example.mabdtheque.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +62,7 @@ fun AlbumEditScreen(
     var signed by remember { mutableStateOf(initial?.isSigned ?: false) }
     var lookupBusy by remember { mutableStateOf(false) }
     var lookupError by remember { mutableStateOf(false) }
+    var pendingResult by remember { mutableStateOf<LookupResult?>(null) }
     var notes by remember { mutableStateOf(initial?.notes ?: "") }
     var coverPath by remember { mutableStateOf(initial?.coverPhotoPath) }
 
@@ -101,17 +103,8 @@ fun AlbumEditScreen(
                             lookupError = false
                             onLookupIsbn(isbn.trim()) { result ->
                                 lookupBusy = false
-                                if (result == null) {
-                                    lookupError = true
-                                } else {
-                                    if (result.title.isNotBlank() && title.isBlank()) {
-                                        title = result.title
-                                    }
-                                    if (result.authors.isNotEmpty() && author.isBlank()) {
-                                        author = result.authors.first()
-                                    }
-                                    result.year?.let { y -> if (year.isBlank()) year = y.toString() }
-                                }
+                                if (result == null) lookupError = true
+                                else pendingResult = result
                             }
                         }
                     },
@@ -124,6 +117,55 @@ fun AlbumEditScreen(
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+            }
+
+            pendingResult?.let { result ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Infos trouvées — vérifiez avant d'appliquer :",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    if (result.title.isNotBlank()) {
+                        Text("Titre : " + result.title,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (result.authors.isNotEmpty()) {
+                        Text("Auteur : " + result.authors.joinToString(", "),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    result.year?.let { y ->
+                        Text("Année : $y",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    result.publisher?.let { p ->
+                        Text("Éditeur : $p",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            if (result.title.isNotBlank() && title.isBlank()) {
+                                title = result.title
+                            }
+                            if (result.authors.isNotEmpty() && author.isBlank()) {
+                                author = result.authors.first()
+                            }
+                            result.year?.let { y ->
+                                if (year.isBlank()) year = y.toString()
+                            }
+                            pendingResult = null
+                        }) { Text("Utiliser ces infos") }
+                        OutlinedButton(onClick = { pendingResult = null }) {
+                            Text("Ignorer")
+                        }
+                    }
                 }
             }
 
