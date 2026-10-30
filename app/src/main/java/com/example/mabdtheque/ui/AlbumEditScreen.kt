@@ -53,7 +53,7 @@ fun AlbumEditScreen(
     var volume by remember {
         mutableStateOf(
             com.example.mabdtheque.data.VolumeParser.format(
-                initial?.volumeNumber, initial?.volumeEnd
+                initial?.volumeNumber, initial?.volumeEnd, initial?.volumeSuffix ?: ""
             ) ?: ""
         )
     }
@@ -210,7 +210,7 @@ fun AlbumEditScreen(
             OutlinedTextField(
                 value = volume,
                 onValueChange = { volume = it },
-                label = { Text("Tome (ex. 3, ou 1-3 pour une intégrale)") },
+                label = { Text("Tome (3, 1-3 intégrale, ou 6.1 s'il est découpé)") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -270,8 +270,9 @@ fun AlbumEditScreen(
                         (initial ?: Album()).copy(
                             seriesTitle = title.trim(),
                             albumTitle = albumTitle.trim(),
-                            volumeNumber = com.example.mabdtheque.data.VolumeParser.parse(volume)?.first,
-                            volumeEnd = com.example.mabdtheque.data.VolumeParser.parse(volume)?.second,
+                            volumeNumber = com.example.mabdtheque.data.VolumeParser.parse(volume)?.start,
+                            volumeEnd = com.example.mabdtheque.data.VolumeParser.parse(volume)?.end,
+                            volumeSuffix = com.example.mabdtheque.data.VolumeParser.parse(volume)?.suffix ?: "",
                             author = author.trim(),
                             artist = artist.trim(),
                             colorist = colorist.trim(),

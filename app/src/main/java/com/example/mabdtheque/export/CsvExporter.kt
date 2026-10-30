@@ -25,7 +25,7 @@ object CsvExporter {
                         a.seriesTitle.csv(),
                         a.albumTitle.csv(),
                         (com.example.mabdtheque.data.VolumeParser.format(
-                            a.volumeNumber, a.volumeEnd
+                            a.volumeNumber, a.volumeEnd, a.volumeSuffix
                         ) ?: "").csv(),
                         a.publisher.csv(),
                         a.author.csv(),

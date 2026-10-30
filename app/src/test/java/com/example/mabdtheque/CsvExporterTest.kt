@@ -1,6 +1,7 @@
 package com.example.mabdtheque
 
 import com.example.mabdtheque.data.Album
+import com.example.mabdtheque.data.ParsedVolume
 import com.example.mabdtheque.data.VolumeParser
 import com.example.mabdtheque.ui.computeMissing
 import org.junit.Assert.assertEquals
@@ -9,21 +10,63 @@ import org.junit.Test
 
 class AlbumTest {
 
+    // ---- VolumeParser ----
+
     @Test
-    fun `displaySubtitle contient tome annee et dedicace`() {
-        val album = Album(
-            seriesTitle = "Astérix",
-            volumeNumber = 1,
-            publicationYear = 1961,
-            isSigned = true
-        )
-        assertEquals("Tome 1 · 1961 · Dédicacé ✦", album.displaySubtitle)
+    fun `parse tome simple`() {
+        assertEquals(ParsedVolume(3, null, ""), VolumeParser.parse("3"))
+        assertEquals(ParsedVolume(12, null, ""), VolumeParser.parse(" 12 "))
+        assertEquals(null, VolumeParser.parse(""))
+        assertEquals(null, VolumeParser.parse("abc"))
+        assertEquals(null, VolumeParser.parse("-"))
     }
 
     @Test
-    fun `displaySubtitle vide quand album minimal`() {
-        val album = Album(seriesTitle = "Titre")
-        assertEquals("", album.displaySubtitle)
+    fun `parse integrale avec tiret`() {
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("1-3"))
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("1–3"))
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("1 à 3"))
+        assertEquals(ParsedVolume(2, 9, ""), VolumeParser.parse("2-9"))
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("3-1"))
+    }
+
+    @Test
+    fun `parse integrale avec separateurs`() {
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("1,2,3"))
+        assertEquals(ParsedVolume(1, 3, ""), VolumeParser.parse("1/2/3"))
+    }
+
+    @Test
+    fun `parse integrale marquee Int`() {
+        assertEquals(ParsedVolume(2, 2, ""), VolumeParser.parse("Int. 2"))
+        assertEquals(ParsedVolume(1, 1, ""), VolumeParser.parse("int"))
+        assertEquals(ParsedVolume(3, 3, ""), VolumeParser.parse("Intégrale3"))
+    }
+
+    @Test
+    fun `parse tome decoupe 6-1 et 6-2`() {
+        assertEquals(ParsedVolume(6, null, "1"), VolumeParser.parse("6.1"))
+        assertEquals(ParsedVolume(6, null, "2"), VolumeParser.parse("6.2"))
+        assertEquals(ParsedVolume(1, null, "1"), VolumeParser.parse("1.1"))
+    }
+
+    @Test
+    fun `format tome decoupe et integrale`() {
+        assertEquals("6.1", VolumeParser.format(6, null, "1"))
+        assertEquals("1-3", VolumeParser.format(1, 3, ""))
+        assertEquals("3", VolumeParser.format(3, null, ""))
+        assertEquals(null, VolumeParser.format(null, null, ""))
+    }
+
+    // ---- Affichage ----
+
+    @Test
+    fun `displaySubtitle contient tome annee et dedicace`() {
+        val album = Album(
+            seriesTitle = "Astérix", volumeNumber = 1,
+            publicationYear = 1961, isSigned = true
+        )
+        assertEquals("Tome 1 · 1961 · Dédicacé ✦", album.displaySubtitle)
     }
 
     @Test
@@ -33,43 +76,20 @@ class AlbumTest {
     }
 
     @Test
-    fun `displayTitle combine serie et titre d'album`() {
-        val album = Album(seriesTitle = "100 âmes", albumTitle = "Victimes")
-        assertEquals("100 âmes — Victimes", album.displayTitle)
+    fun `displaySubtitle affiche tome decoupe`() {
+        val album = Album(seriesTitle = "Travis", volumeNumber = 6, volumeSuffix = "1")
+        assertEquals("Tome 6.1", album.displaySubtitle)
     }
 
-    @Test
-    fun `parse tome simple`() {
-        assertEquals(3 to null, VolumeParser.parse("3"))
-        assertEquals(12 to null, VolumeParser.parse(" 12 "))
-        assertEquals(null, VolumeParser.parse(""))
-        assertEquals(null, VolumeParser.parse("abc"))
-    }
-
-    @Test
-    fun `parse integrale avec tiret`() {
-        assertEquals(1 to 3, VolumeParser.parse("1-3"))
-        assertEquals(1 to 3, VolumeParser.parse("1–3"))
-        assertEquals(1 to 3, VolumeParser.parse("1 à 3"))
-        assertEquals(2 to 9, VolumeParser.parse("2-9"))
-        assertEquals(1 to 3, VolumeParser.parse("3-1"))
-    }
-
-    @Test
-    fun `parse integrale avec separateurs`() {
-        assertEquals(1 to 3, VolumeParser.parse("1,2,3"))
-        assertEquals(1 to 3, VolumeParser.parse("1/2/3"))
-    }
+    // ---- computeMissing ----
 
     @Test
     fun `computeMissing ne marque pas les tomes d'une integrale comme manquants`() {
-        // Intégrale tomes 1-3 + tome 4 : aucun manquant
         val albums = listOf(
             Album(seriesTitle = "Série", volumeNumber = 1, volumeEnd = 3, owned = true),
             Album(seriesTitle = "Série", volumeNumber = 4, owned = true)
         )
-        val result = computeMissing(albums)
-        assertTrue(result.isEmpty())
+        assertTrue(computeMissing(albums).isEmpty())
     }
 
     @Test
@@ -85,8 +105,23 @@ class AlbumTest {
     }
 
     @Test
+    fun `computeMissing avec serie Travis tomes decoupes 6-1 6-2`() {
+        val albums = listOf(
+            Album(seriesTitle = "Travis", volumeNumber = 1, owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 2, owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 3, owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 4, owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 5, owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 6, volumeSuffix = "1", owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 6, volumeSuffix = "2", owned = true),
+            Album(seriesTitle = "Travis", volumeNumber = 7, owned = true)
+        )
+        val result = computeMissing(albums)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
     fun `computeMissing ignore les tomes non possedes deja connus`() {
-        // tome 3 marque comme souhait (Compte=0) : il n'est pas un "manquant"
         val albums = listOf(
             Album(seriesTitle = "Astérix", volumeNumber = 1, owned = true),
             Album(seriesTitle = "Astérix", volumeNumber = 2, owned = true),

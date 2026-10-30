@@ -48,11 +48,18 @@ class CollectionViewModel(app: Application) : AndroidViewModel(app) {
             var duplicates = 0
             val existing = repository.allOnce()
             val existingKeys = existing.map {
-                (it.seriesTitle.trim().lowercase() to it.volumeNumber) to it.isbn.trim()
+                Triple(
+                    Triple(it.seriesTitle.trim().lowercase(), it.volumeNumber, it.volumeEnd),
+                    it.volumeSuffix,
+                    it.isbn.trim()
+                )
             }.toMutableSet()
             for (row in rows) {
-                val key = (row.seriesTitle.trim().lowercase() to row.volumeNumber) to
+                val key = Triple(
+                    Triple(row.seriesTitle.trim().lowercase(), row.volumeNumber, row.volumeEnd),
+                    row.volumeSuffix,
                     row.isbn.trim()
+                )
                 if (key in existingKeys) {
                     duplicates++
                     continue

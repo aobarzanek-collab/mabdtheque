@@ -10,6 +10,7 @@ data class Album(
     val albumTitle: String = "",
     val volumeNumber: Int? = null,
     val volumeEnd: Int? = null,
+    val volumeSuffix: String = "",
     val author: String = "",
     val artist: String = "",
     val colorist: String = "",
@@ -27,6 +28,7 @@ data class Album(
             volumeNumber == null -> ""
             volumeEnd != null && volumeEnd != volumeNumber ->
                 "Tomes $volumeNumber à $volumeEnd"
+            volumeSuffix.isNotBlank() -> "Tome $volumeNumber.$volumeSuffix"
             else -> "Tome $volumeNumber"
         }
 

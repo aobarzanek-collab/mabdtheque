@@ -82,8 +82,9 @@ object ExcelImporter {
         return Album(
             seriesTitle = series,
             albumTitle = title,
-            volumeNumber = parsedVolume?.first,
-            volumeEnd = parsedVolume?.second,
+            volumeNumber = parsedVolume?.start,
+            volumeEnd = parsedVolume?.end,
+            volumeSuffix = parsedVolume?.suffix ?: "",
             author = getCellString(row, colMap, listOf("scenariste", "scénariste", "auteur", "author")),
             artist = getCellString(row, colMap, listOf("dessinateur", "dessin")),
             colorist = getCellString(row, colMap, listOf("coloriste", "couleur")),
