@@ -14,11 +14,14 @@ import com.example.mabdtheque.camera.CoverPhotoScreen
 import com.example.mabdtheque.camera.CropScreen
 import com.example.mabdtheque.data.Album
 import com.example.mabdtheque.export.CsvExporter
+import com.example.mabdtheque.importer.ImportScreen
 import com.example.mabdtheque.lookup.LookupResult
 import com.example.mabdtheque.scanner.BarcodeScannerScreen
 import com.example.mabdtheque.ui.AlbumEditScreen
 import com.example.mabdtheque.ui.AlbumListScreen
 import com.example.mabdtheque.ui.CollectionViewModel
+import com.example.mabdtheque.ui.MissingVolumesScreen
+import com.example.mabdtheque.ui.computeMissing
 import kotlinx.coroutines.launch
 
 private sealed interface Screen {
@@ -27,6 +30,8 @@ private sealed interface Screen {
     data object TakePhoto : Screen
     data class Crop(val photoPath: String) : Screen
     data class Edit(val albumId: Long?) : Screen
+    data object Import : Screen
+    data object Missing : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -53,7 +58,9 @@ class MainActivity : ComponentActivity() {
                         onAdd = { draft = null; screen = Screen.Edit(null) },
                         onEdit = { draft = it; screen = Screen.Edit(it.id) },
                         onDelete = { collectionViewModel.delete(it) },
-                        onExportCsv = { exportCsv() }
+                        onExportCsv = { exportCsv() },
+                        onImportExcel = { screen = Screen.Import },
+                        onShowMissing = { screen = Screen.Missing }
                     )
                 }
 
@@ -86,6 +93,22 @@ class MainActivity : ComponentActivity() {
                         onCancel = {
                             screen = Screen.Edit(draft?.id)
                         }
+                    )
+                }
+
+                Screen.Import -> {
+                    ImportScreen(
+                        onImport = { rows, done ->
+                            collectionViewModel.importAlbums(rows, done)
+                        },
+                        onBack = { screen = Screen.List }
+                    )
+                }
+
+                Screen.Missing -> {
+                    MissingVolumesScreen(
+                        missing = computeMissing(albums),
+                        onBack = { screen = Screen.List }
                     )
                 }
 

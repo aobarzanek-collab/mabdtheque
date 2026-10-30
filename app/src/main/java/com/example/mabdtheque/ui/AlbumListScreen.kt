@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -46,18 +47,36 @@ fun AlbumListScreen(
     onAdd: () -> Unit,
     onEdit: (Album) -> Unit,
     onDelete: (Album) -> Unit,
-    onExportCsv: () -> Unit
+    onExportCsv: () -> Unit,
+    onImportExcel: () -> Unit,
+    onShowMissing: () -> Unit
 ) {
+    var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Ma BDthèque ($totalCount)") },
                 actions = {
-                    IconButton(onClick = onExportCsv) {
-                        Icon(Icons.Default.PhotoCamera, contentDescription = "Export CSV")
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Tomes manquants") },
+                            onClick = { menuOpen = false; onShowMissing() }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Importer Excel") },
+                            onClick = { menuOpen = false; onImportExcel() }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Exporter CSV") },
+                            onClick = { menuOpen = false; onExportCsv() }
+                        )
                     }
-                    IconButton(onClick = onAdd) {
-                        Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 }
             )

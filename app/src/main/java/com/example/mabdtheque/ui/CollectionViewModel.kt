@@ -42,6 +42,28 @@ class CollectionViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun repositoryAll(): List<Album> = repository.allOnce()
 
+    fun importAlbums(rows: List<Album>, onDone: (Int, Int) -> Unit) =
+        viewModelScope.launch {
+            var imported = 0
+            var duplicates = 0
+            val existing = repository.allOnce()
+            val existingKeys = existing.map {
+                (it.seriesTitle.trim().lowercase() to it.volumeNumber) to it.isbn.trim()
+            }.toMutableSet()
+            for (row in rows) {
+                val key = (row.seriesTitle.trim().lowercase() to row.volumeNumber) to
+                    row.isbn.trim()
+                if (key in existingKeys) {
+                    duplicates++
+                    continue
+                }
+                repository.save(row.copy(id = 0))
+                existingKeys.add(key)
+                imported++
+            }
+            onDone(imported, duplicates)
+        }
+
     fun lookupIsbn(isbn: String, onResult: (LookupResult?) -> Unit) =
         viewModelScope.launch {
             onResult(IsbnLookup.lookup(isbn))
