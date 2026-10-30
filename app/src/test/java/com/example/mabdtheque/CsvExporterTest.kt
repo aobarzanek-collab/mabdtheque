@@ -1,6 +1,7 @@
 package com.example.mabdtheque
 
 import com.example.mabdtheque.data.Album
+import com.example.mabdtheque.data.VolumeParser
 import com.example.mabdtheque.ui.computeMissing
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -35,6 +36,40 @@ class AlbumTest {
     fun `displayTitle combine serie et titre d'album`() {
         val album = Album(seriesTitle = "100 âmes", albumTitle = "Victimes")
         assertEquals("100 âmes — Victimes", album.displayTitle)
+    }
+
+    @Test
+    fun `parse tome simple`() {
+        assertEquals(3 to null, VolumeParser.parse("3"))
+        assertEquals(12 to null, VolumeParser.parse(" 12 "))
+        assertEquals(null, VolumeParser.parse(""))
+        assertEquals(null, VolumeParser.parse("abc"))
+    }
+
+    @Test
+    fun `parse integrale avec tiret`() {
+        assertEquals(1 to 3, VolumeParser.parse("1-3"))
+        assertEquals(1 to 3, VolumeParser.parse("1–3"))
+        assertEquals(1 to 3, VolumeParser.parse("1 à 3"))
+        assertEquals(2 to 9, VolumeParser.parse("2-9"))
+        assertEquals(1 to 3, VolumeParser.parse("3-1"))
+    }
+
+    @Test
+    fun `parse integrale avec separateurs`() {
+        assertEquals(1 to 3, VolumeParser.parse("1,2,3"))
+        assertEquals(1 to 3, VolumeParser.parse("1/2/3"))
+    }
+
+    @Test
+    fun `computeMissing ne marque pas les tomes d'une integrale comme manquants`() {
+        // Intégrale tomes 1-3 + tome 4 : aucun manquant
+        val albums = listOf(
+            Album(seriesTitle = "Série", volumeNumber = 1, volumeEnd = 3, owned = true),
+            Album(seriesTitle = "Série", volumeNumber = 4, owned = true)
+        )
+        val result = computeMissing(albums)
+        assertTrue(result.isEmpty())
     }
 
     @Test

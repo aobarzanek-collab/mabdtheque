@@ -3,6 +3,7 @@ package com.example.mabdtheque.importer
 import android.content.Context
 import android.net.Uri
 import com.example.mabdtheque.data.Album
+import com.example.mabdtheque.data.VolumeParser
 import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.Row
@@ -75,10 +76,14 @@ object ExcelImporter {
             }
         }
 
+        val volumeRaw = getCellString(row, colMap, listOf("tome", "volume", "numero", "numéro"))
+        val parsedVolume = VolumeParser.parse(volumeRaw)
+
         return Album(
             seriesTitle = series,
             albumTitle = title,
-            volumeNumber = getCellInt(row, colMap, listOf("tome", "volume", "numero", "numéro")),
+            volumeNumber = parsedVolume?.first,
+            volumeEnd = parsedVolume?.second,
             author = getCellString(row, colMap, listOf("scenariste", "scénariste", "auteur", "author")),
             artist = getCellString(row, colMap, listOf("dessinateur", "dessin")),
             colorist = getCellString(row, colMap, listOf("coloriste", "couleur")),

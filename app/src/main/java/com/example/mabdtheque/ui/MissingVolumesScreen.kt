@@ -25,18 +25,24 @@ data class SeriesMissing(
     val totalCounted: Int
 )
 
+/** Développe un album en liste de tomes couverts (gère les intégrales). */
+fun volumesOf(album: Album): List<Int> {
+    val start = album.volumeNumber ?: return emptyList()
+    val end = album.volumeEnd ?: start
+    return if (end >= start) (start..end).toList() else listOf(start)
+}
+
 fun computeMissing(albums: List<Album>): List<SeriesMissing> {
     return albums
         .filter { it.volumeNumber != null }
         .groupBy { it.seriesTitle.trim().lowercase() }
         .map { (series, list) ->
-            val owned = list.filter { it.owned }
-                .mapNotNull { it.volumeNumber }.distinct().sorted()
-            val known = list.mapNotNull { it.volumeNumber }.distinct().sorted()
+            val owned = list.filter { it.owned }.flatMap { volumesOf(it) }
+                .distinct().sorted()
+            val known = list.flatMap { volumesOf(it) }.distinct().sorted()
             val missing = when {
                 owned.isEmpty() -> emptyList()
-                else -> (owned.first()..owned.last())
-                    .filter { it !in known }
+                else -> (owned.first()..owned.last()).filter { it !in known }
             }
             SeriesMissing(
                 seriesTitle = list.first().seriesTitle.ifBlank { series },
@@ -95,11 +101,20 @@ fun MissingVolumesScreen(
                                 series.seriesTitle,
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            Text(
-                                "Possédés : ${series.ownedVolumes.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (series.ownedVolumes.size > 40) {
+                                Text(
+                                    "Possédés : tomes ${series.ownedVolumes.first()} à " +
+                                    "${series.ownedVolumes.last()} (${series.ownedVolumes.size} tomes)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    "Possédés : ${series.ownedVolumes.joinToString(", ")}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             Text(
                                 "Manquants : ${series.missingVolumes.joinToString(", ")}",
                                 style = MaterialTheme.typography.bodyMedium,

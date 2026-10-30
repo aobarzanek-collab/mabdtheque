@@ -9,6 +9,7 @@ data class Album(
     val seriesTitle: String = "",
     val albumTitle: String = "",
     val volumeNumber: Int? = null,
+    val volumeEnd: Int? = null,
     val author: String = "",
     val artist: String = "",
     val colorist: String = "",
@@ -21,9 +22,17 @@ data class Album(
     val notes: String = "",
     val createdAt: Long = System.currentTimeMillis()
 ) {
+    val volumeSubtitle: String
+        get() = when {
+            volumeNumber == null -> ""
+            volumeEnd != null && volumeEnd != volumeNumber ->
+                "Tomes $volumeNumber à $volumeEnd"
+            else -> "Tome $volumeNumber"
+        }
+
     val displaySubtitle: String
         get() = buildList {
-            volumeNumber?.let { add("Tome $it") }
+            if (volumeSubtitle.isNotBlank()) add(volumeSubtitle)
             publicationYear?.let { add(it.toString()) }
             if (isSigned) add("Dédicacé \u2726")
             if (!owned) add("Souhait \u2661")
