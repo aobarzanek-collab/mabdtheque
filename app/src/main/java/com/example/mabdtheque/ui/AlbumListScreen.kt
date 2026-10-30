@@ -144,7 +144,7 @@ fun AlbumListScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    album.seriesTitle.ifBlank { "(Sans titre)" },
+                                    album.displayTitle,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 if (album.displaySubtitle.isNotBlank()) {
@@ -158,6 +158,13 @@ fun AlbumListScreen(
                                     Text(
                                         "Scénario : " + album.author,
                                         style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                if (!album.owned) {
+                                    Text(
+                                        "Souhait (pas encore possédé)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
                                     )
                                 }
                             }

@@ -10,8 +10,8 @@ import java.io.File
 object CsvExporter {
 
     private val HEADER = listOf(
-        "Titre", "Tome", "Auteur", "Dessinateur", "Coloriste",
-        "Annee", "ISBN", "Dedicace", "Notes"
+        "SERIE", "TITRE", "TOME", "EDITEUR", "SCENARISTE", "DESSINATEUR",
+        "COLORISTE", "Annee", "ISBN", "Dedicace", "Compte", "Notes"
     )
 
     fun export(context: Context, albums: List<Album>): Uri? {
@@ -23,13 +23,16 @@ object CsvExporter {
                 appendLine(
                     listOf(
                         a.seriesTitle.csv(),
+                        a.albumTitle.csv(),
                         a.volumeNumber?.toString()?.csv() ?: "",
+                        a.publisher.csv(),
                         a.author.csv(),
                         a.artist.csv(),
                         a.colorist.csv(),
                         a.publicationYear?.toString() ?: "",
                         a.isbn.csv(),
                         if (a.isSigned) "oui" else "non",
+                        if (a.owned) "1" else "0",
                         a.notes.csv()
                     ).joinToString(";")
                 )

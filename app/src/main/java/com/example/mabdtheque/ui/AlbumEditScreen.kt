@@ -49,17 +49,20 @@ fun AlbumEditScreen(
     onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf(initial?.seriesTitle ?: "") }
+    var albumTitle by remember { mutableStateOf(initial?.albumTitle ?: "") }
     var volume by remember {
         mutableStateOf(initial?.volumeNumber?.toString() ?: "")
     }
     var author by remember { mutableStateOf(initial?.author ?: "") }
     var artist by remember { mutableStateOf(initial?.artist ?: "") }
     var colorist by remember { mutableStateOf(initial?.colorist ?: "") }
+    var publisher by remember { mutableStateOf(initial?.publisher ?: "") }
     var year by remember {
         mutableStateOf(initial?.publicationYear?.toString() ?: "")
     }
     var isbn by remember { mutableStateOf(initial?.isbn ?: "") }
     var signed by remember { mutableStateOf(initial?.isSigned ?: false) }
+    var owned by remember { mutableStateOf(initial?.owned ?: true) }
     var lookupBusy by remember { mutableStateOf(false) }
     var lookupError by remember { mutableStateOf(false) }
     var pendingResult by remember { mutableStateOf<LookupResult?>(null) }
@@ -194,6 +197,13 @@ fun AlbumEditScreen(
             )
 
             OutlinedTextField(
+                value = albumTitle,
+                onValueChange = { albumTitle = it },
+                label = { Text("Titre de l'album") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
                 value = volume,
                 onValueChange = { volume = it.filter { c -> c.isDigit() } },
                 label = { Text("Tome") },
@@ -222,6 +232,13 @@ fun AlbumEditScreen(
             )
 
             OutlinedTextField(
+                value = publisher,
+                onValueChange = { publisher = it },
+                label = { Text("Éditeur") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
                 value = year,
                 onValueChange = { year = it.filter { c -> c.isDigit() }.take(4) },
                 label = { Text("Année de parution") },
@@ -231,6 +248,9 @@ fun AlbumEditScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = signed, onCheckedChange = { signed = it })
                 Text("Dédicacé")
+                Spacer(Modifier.width(16.dp))
+                Checkbox(checked = owned, onCheckedChange = { owned = it })
+                Text("Possédé")
             }
 
             OutlinedTextField(
@@ -245,19 +265,22 @@ fun AlbumEditScreen(
                     onSave(
                         (initial ?: Album()).copy(
                             seriesTitle = title.trim(),
+                            albumTitle = albumTitle.trim(),
                             volumeNumber = volume.toIntOrNull(),
                             author = author.trim(),
                             artist = artist.trim(),
                             colorist = colorist.trim(),
+                            publisher = publisher.trim(),
                             publicationYear = year.toIntOrNull(),
                             isbn = isbn.trim(),
                             isSigned = signed,
+                            owned = owned,
                             notes = notes.trim(),
                             coverPhotoPath = coverPath
                         )
                     )
                 },
-                enabled = title.isNotBlank(),
+                enabled = title.isNotBlank() || albumTitle.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Enregistrer") }
 

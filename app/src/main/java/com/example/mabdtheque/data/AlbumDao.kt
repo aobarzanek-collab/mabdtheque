@@ -16,9 +16,11 @@ interface AlbumDao {
 
     @Query(
         "SELECT * FROM albums WHERE seriesTitle LIKE '%' || :q || '%' " +
+        "OR albumTitle LIKE '%' || :q || '%' " +
         "OR author LIKE '%' || :q || '%' " +
         "OR artist LIKE '%' || :q || '%' " +
         "OR colorist LIKE '%' || :q || '%' " +
+        "OR publisher LIKE '%' || :q || '%' " +
         "OR isbn = :q ORDER BY seriesTitle COLLATE NOCASE, volumeNumber"
     )
     fun search(q: String): Flow<List<Album>>

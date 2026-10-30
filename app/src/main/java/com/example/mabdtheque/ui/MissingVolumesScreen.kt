@@ -30,12 +30,16 @@ fun computeMissing(albums: List<Album>): List<SeriesMissing> {
         .filter { it.volumeNumber != null }
         .groupBy { it.seriesTitle.trim().lowercase() }
         .map { (series, list) ->
-            val owned = list.mapNotNull { it.volumeNumber }.distinct().sorted()
-            val missing = if (owned.isEmpty()) emptyList() else {
-                (owned.first()..owned.last()).filter { it !in owned }
+            val owned = list.filter { it.owned }
+                .mapNotNull { it.volumeNumber }.distinct().sorted()
+            val known = list.mapNotNull { it.volumeNumber }.distinct().sorted()
+            val missing = when {
+                owned.isEmpty() -> emptyList()
+                else -> (owned.first()..owned.last())
+                    .filter { it !in known }
             }
             SeriesMissing(
-                seriesTitle = list.first().seriesTitle,
+                seriesTitle = list.first().seriesTitle.ifBlank { series },
                 ownedVolumes = owned,
                 missingVolumes = missing,
                 totalCounted = owned.size
