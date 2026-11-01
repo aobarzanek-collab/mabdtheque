@@ -2,9 +2,11 @@ package com.example.mabdtheque.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,11 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -28,14 +30,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.mabdtheque.data.Album
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +63,45 @@ fun AlbumListScreen(
     onImportExcel: () -> Unit,
     onShowMissing: () -> Unit
 ) {
-    var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Restaure la position de défilement au retour d'une fiche :
+    // on mémorise le premier album visible avant de quitter la liste.
+    var lastFirstVisible by remember { mutableStateOf(-1) }
+    val firstVisibleIndex by remember {
+        derivedStateOf { listState.firstVisibleItemIndex }
+    }
+    LaunchedEffect(firstVisibleIndex) {
+        if (firstVisibleIndex >= 0) lastFirstVisible = firstVisibleIndex
+    }
+    LaunchedEffect(albums.size) {
+        if (albums.isNotEmpty() && lastFirstVisible in albums.indices) {
+            listState.scrollToItem(lastFirstVisible)
+        }
+    }
+
+    // Index alphabétique : première lettre de chaque album visible
+    val letters by remember(albums) {
+        derivedStateOf {
+            albums.mapNotNull { it.seriesTitle.firstOrNull() }
+                .map { it.uppercaseChar() }
+                .distinct()
+                .sorted()
+        }
+    }
+    // Position de la première occurrence de chaque lettre dans la liste
+    val letterPositions by remember(albums) {
+        derivedStateOf {
+            val map = LinkedHashMap<Char, Int>()
+            albums.forEachIndexed { index, album ->
+                val c = album.seriesTitle.firstOrNull()?.uppercaseChar() ?: '?'
+                if (!map.containsKey(c)) map[c] = index
+            }
+            map
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -117,68 +167,112 @@ fun AlbumListScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp, vertical = 8.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(albums, key = { it.id }) { album ->
-                        Row(
+                Row(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 16.dp, vertical = 8.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(albums, key = { it.id }) { album ->
+                            AlbumRow(album, onEdit, onDelete)
+                        }
+                    }
+
+                    // Index alphabétique latéral
+                    if (letters.size > 1) {
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onEdit(album) }
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxHeight()
+                                .padding(vertical = 64.dp, horizontal = 2.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            AsyncImage(
-                                model = album.coverPhotoPath,
-                                contentDescription = "Couverture",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                            letters.forEach { letter ->
                                 Text(
-                                    album.displayTitle,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                if (album.displaySubtitle.isNotBlank()) {
-                                    Text(
-                                        album.displaySubtitle,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                if (album.author.isNotBlank()) {
-                                    Text(
-                                        "Scénario : " + album.author,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                                if (!album.owned) {
-                                    Text(
-                                        "Souhait (pas encore possédé)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                }
-                            }
-                            IconButton(onClick = { onDelete(album) }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Supprimer",
-                                    tint = MaterialTheme.colorScheme.error
+                                    text = letter.toString(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            letterPositions[letter]?.let { index ->
+                                                scope.launch {
+                                                    listState.scrollToItem(index)
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 3.dp, vertical = 1.dp)
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AlbumRow(
+    album: Album,
+    onEdit: (Album) -> Unit,
+    onDelete: (Album) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onEdit(album) }
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = album.coverPhotoPath,
+            contentDescription = "Couverture",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(6.dp))
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                album.displayTitle,
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (album.displaySubtitle.isNotBlank()) {
+                Text(
+                    album.displaySubtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (album.author.isNotBlank()) {
+                Text(
+                    "Scénario : " + album.author,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (!album.owned) {
+                Text(
+                    "Souhait (pas encore possédé)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+        IconButton(onClick = { onDelete(album) }) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Supprimer",
+                tint = MaterialTheme.colorScheme.error
+            )
         }
     }
 }
