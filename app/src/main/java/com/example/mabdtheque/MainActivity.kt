@@ -10,7 +10,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.mabdtheque.camera.CoverPhotoScreen
@@ -58,24 +57,17 @@ class MainActivity : ComponentActivity() {
 
             // État de défilement de la liste : survit aux allers-retours.
             val listState = rememberLazyListState()
-            rememberSaveable(
-                stateSaver = Saver(
-                    save = {
-                        listOf(
-                            listState.firstVisibleItemIndex,
-                            listState.firstVisibleItemScrollOffset
-                        )
-                    },
-                    restore = { values ->
-                        @Suppress("UNCHECKED_CAST")
-                        val v = values as List<Int>
-                        kotlinx.coroutines.runBlocking {
-                            listState.scrollToItem(v[0], v[1])
-                        }
-                        true
-                    }
+            val savedPosition = rememberSaveable { mutableStateOf(Pair(0, 0)) }
+            LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
+                savedPosition.value = Pair(
+                    listState.firstVisibleItemIndex,
+                    listState.firstVisibleItemScrollOffset
                 )
-            ) { mutableStateOf(true) }
+            }
+            LaunchedEffect(Unit) {
+                val (index, offset) = savedPosition.value
+                if (index > 0) listState.scrollToItem(index, offset)
+            }
 
             LaunchedEffect(screen) {
                 val cat = (screen as? Screen.List)?.category

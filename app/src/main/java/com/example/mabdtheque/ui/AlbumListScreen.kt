@@ -85,9 +85,8 @@ fun AlbumListScreen(
                 title = { Text("$categoryLabel ($totalCount) — v1.4") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        androidx.compose.material.icons.Icons
                         Icon(
-                            androidx.compose.material.icons.automirrored.filled.ArrowBack,
+                            imageVector = ArrowBack,
                             contentDescription = "Retour"
                         )
                     }
