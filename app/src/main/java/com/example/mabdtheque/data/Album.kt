@@ -3,6 +3,17 @@ package com.example.mabdtheque.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+enum class Category(val label: String) {
+    BD("BD adultes"),
+    MANGA("Manga"),
+    JEUNESSE("BD jeunesse");
+
+    companion object {
+        fun fromName(raw: String?): Category =
+            entries.firstOrNull { it.name.equals(raw?.trim(), ignoreCase = true) } ?: BD
+    }
+}
+
 @Entity(tableName = "albums")
 data class Album(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -19,10 +30,13 @@ data class Album(
     val isbn: String = "",
     val isSigned: Boolean = false,
     val owned: Boolean = true,
+    val category: String = Category.BD.name,
     val coverPhotoPath: String? = null,
     val notes: String = "",
     val createdAt: Long = System.currentTimeMillis()
 ) {
+    val categoryEnum: Category get() = Category.fromName(category)
+
     val volumeSubtitle: String
         get() = when {
             volumeNumber == null -> ""

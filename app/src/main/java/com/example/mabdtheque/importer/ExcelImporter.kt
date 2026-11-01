@@ -16,23 +16,33 @@ data class ImportResult(
     val errors: List<String>
 )
 
+data class SheetsResult(
+    val sheets: List<Pair<String, List<Album>>>,
+    val errors: List<String>
+)
+
 object ExcelImporter {
 
-    fun parse(context: Context, uri: Uri): ImportResult {
+    /** Parse feuille par feuille pour laisser l'utilisateur choisir la catégorie. */
+    fun parseSheets(context: Context, uri: Uri): SheetsResult {
         val errors = ArrayList<String>()
-        val albums = ArrayList<Album>()
+        val sheets = ArrayList<Pair<String, List<Album>>>()
         try {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 val workbook: Workbook = WorkbookFactory.create(input)
                 for (sheetIndex in 0 until workbook.numberOfSheets) {
                     val sheet = workbook.getSheetAt(sheetIndex)
+                    val albums = ArrayList<Album>()
                     parseSheet(sheet, albums, errors)
+                    if (albums.isNotEmpty()) {
+                        sheets.add(sheet.sheetName to albums)
+                    }
                 }
             }
         } catch (e: Exception) {
             errors.add("Lecture impossible : ${e.message}")
         }
-        return ImportResult(albums, errors)
+        return SheetsResult(sheets, errors)
     }
 
     private fun parseSheet(sheet: Sheet, albums: MutableList<Album>, errors: MutableList<String>) {

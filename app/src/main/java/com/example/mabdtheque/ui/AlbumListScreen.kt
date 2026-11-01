@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -59,7 +60,9 @@ fun AlbumListScreen(
     onExportCsv: () -> Unit,
     onImportExcel: () -> Unit,
     onShowMissing: () -> Unit,
-    listState: LazyListState
+    listState: LazyListState,
+    categoryLabel: String,
+    onBack: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -79,7 +82,16 @@ fun AlbumListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ma BDthèque ($totalCount) — v1.3") },
+                title = { Text("$categoryLabel ($totalCount) — v1.4") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        androidx.compose.material.icons.Icons
+                        Icon(
+                            androidx.compose.material.icons.automirrored.filled.ArrowBack,
+                            contentDescription = "Retour"
+                        )
+                    }
+                },
                 actions = {
                     androidx.compose.material3.DropdownMenu(
                         expanded = menuOpen,

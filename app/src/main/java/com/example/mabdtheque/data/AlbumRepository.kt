@@ -7,16 +7,17 @@ class AlbumRepository(context: Context) {
 
     private val dao = AppDatabase.get(context).albumDao()
 
-    fun all(): Flow<List<Album>> = dao.getAll()
+    fun inCategory(category: Category): Flow<List<Album>> =
+        dao.getAllInCategory(category.name)
 
-    fun search(query: String): Flow<List<Album>> =
-        if (query.isBlank()) dao.getAll() else dao.search(query.trim())
+    fun searchInCategory(category: Category, query: String): Flow<List<Album>> =
+        if (query.isBlank()) dao.getAllInCategory(category.name)
+        else dao.searchInCategory(category.name, query.trim())
 
-    fun count(): Flow<Int> = dao.count()
+    fun countInCategory(category: Category): Flow<Int> =
+        dao.countInCategory(category.name)
 
     suspend fun byId(id: Long): Album? = dao.getById(id)
-
-    suspend fun byIsbn(isbn: String): Album? = dao.findByIsbn(isbn)
 
     suspend fun allOnce(): List<Album> = dao.getAllOnce()
 

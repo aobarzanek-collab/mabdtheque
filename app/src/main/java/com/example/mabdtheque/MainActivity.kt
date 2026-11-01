@@ -4,15 +4,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.mabdtheque.camera.CoverPhotoScreen
 import com.example.mabdtheque.camera.CropScreen
 import com.example.mabdtheque.data.Album
+import com.example.mabdtheque.data.Category
 import com.example.mabdtheque.export.CsvExporter
 import com.example.mabdtheque.importer.ImportScreen
 import com.example.mabdtheque.lookup.LookupResult
@@ -20,12 +24,14 @@ import com.example.mabdtheque.scanner.BarcodeScannerScreen
 import com.example.mabdtheque.ui.AlbumEditScreen
 import com.example.mabdtheque.ui.AlbumListScreen
 import com.example.mabdtheque.ui.CollectionViewModel
+import com.example.mabdtheque.ui.HomeScreen
 import com.example.mabdtheque.ui.MissingVolumesScreen
 import com.example.mabdtheque.ui.computeMissing
 import kotlinx.coroutines.launch
 
 private sealed interface Screen {
-    data object List : Screen
+    data object Home : Screen
+    data class List(val category: Category) : Screen
     data object ScanIsbn : Screen
     data object TakePhoto : Screen
     data class Crop(val photoPath: String) : Screen
@@ -44,17 +50,22 @@ class MainActivity : ComponentActivity() {
             val albums by collectionViewModel.albums.collectAsState()
             val total by collectionViewModel.totalCount.collectAsState()
             val query by collectionViewModel.searchQuery.collectAsState()
+            val homeCounts by collectionViewModel.homeCounts.collectAsState()
 
-            var screen by remember { mutableStateOf<Screen>(Screen.List) }
+            var screen by remember { mutableStateOf<Screen>(Screen.Home) }
             var draft by remember { mutableStateOf<Album?>(null) }
+            var activeCategory by remember { mutableStateOf(Category.BD) }
 
-            // État de défilement de la liste : vit ici pour survivre
-            // aux allers-retours entre la liste et les autres écrans.
-            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-
-            androidx.compose.runtime.saveable.rememberSaveable(
-                stateSaver = androidx.compose.runtime.saveable.Saver(
-                    save = { listOf(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) },
+            // État de défilement de la liste : survit aux allers-retours.
+            val listState = rememberLazyListState()
+            rememberSaveable(
+                stateSaver = Saver(
+                    save = {
+                        listOf(
+                            listState.firstVisibleItemIndex,
+                            listState.firstVisibleItemScrollOffset
+                        )
+                    },
                     restore = { values ->
                         @Suppress("UNCHECKED_CAST")
                         val v = values as List<Int>
@@ -66,14 +77,31 @@ class MainActivity : ComponentActivity() {
                 )
             ) { mutableStateOf(true) }
 
+            LaunchedEffect(screen) {
+                val cat = (screen as? Screen.List)?.category
+                if (cat != null) {
+                    activeCategory = cat
+                    collectionViewModel.openCategory(cat)
+                }
+            }
+
             when (val current = screen) {
-                Screen.List -> {
+                Screen.Home -> {
+                    HomeScreen(
+                        counts = homeCounts,
+                        onOpen = { screen = Screen.List(it) }
+                    )
+                }
+
+                is Screen.List -> {
                     AlbumListScreen(
                         albums = albums,
                         totalCount = total,
                         searchQuery = query,
-                        listState = listState,
                         onSearchQueryChange = collectionViewModel::onSearchQueryChange,
+                        listState = listState,
+                        categoryLabel = activeCategory.label,
+                        onBack = { screen = Screen.Home },
                         onAdd = { draft = null; screen = Screen.Edit(null) },
                         onEdit = { draft = it; screen = Screen.Edit(it.id) },
                         onDelete = { collectionViewModel.delete(it) },
@@ -120,14 +148,14 @@ class MainActivity : ComponentActivity() {
                         onImport = { rows, done ->
                             collectionViewModel.importAlbums(rows, done)
                         },
-                        onBack = { screen = Screen.List }
+                        onBack = { screen = Screen.Home }
                     )
                 }
 
                 Screen.Missing -> {
                     MissingVolumesScreen(
                         missing = computeMissing(albums),
-                        onBack = { screen = Screen.List }
+                        onBack = { screen = Screen.List(activeCategory) }
                     )
                 }
 
@@ -136,18 +164,22 @@ class MainActivity : ComponentActivity() {
                         { isbn, cb -> collectionViewModel.lookupIsbn(isbn, cb) }
                     LaunchedEffect(current.albumId) {
                         if (draft == null && current.albumId != null) {
-                            screen = Screen.List
+                            screen = Screen.List(activeCategory)
                         }
                     }
                     AlbumEditScreen(
                         initial = draft,
+                        category = activeCategory,
+                        onCategoryChange = { activeCategory = it },
                         onSave = { album ->
-                            collectionViewModel.save(album) { screen = Screen.List }
+                            collectionViewModel.save(album) {
+                                screen = Screen.List(activeCategory)
+                            }
                         },
-                        onScanIsbn = { screen = Screen.ScanIsbn },
-                        onTakePhoto = { screen = Screen.TakePhoto },
+                        onScanIsbn = { currentDraft -> draft = currentDraft; screen = Screen.ScanIsbn },
+                        onTakePhoto = { currentDraft -> draft = currentDraft; screen = Screen.TakePhoto },
                         onLookupIsbn = doLookup,
-                        onBack = { screen = Screen.List }
+                        onBack = { screen = Screen.List(activeCategory) }
                     )
                 }
             }

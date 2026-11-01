@@ -5,13 +5,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mabdtheque.data.Album
 import com.example.mabdtheque.data.AlbumRepository
+import com.example.mabdtheque.data.Category
 import com.example.mabdtheque.lookup.IsbnLookup
 import com.example.mabdtheque.lookup.LookupResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,14 +25,33 @@ class CollectionViewModel(app: Application) : AndroidViewModel(app) {
 
     val searchQuery: StateFlow<String> = query
 
-    val albums: StateFlow<List<Album>> = query
-        .flatMapLatest { repository.search(it) }
+    fun onSearchQueryChange(q: String) { query.value = q }
+
+    // Collection actuellement ouverte (BD, MANGA, JEUNESSE)
+    private val currentCategory = MutableStateFlow(Category.BD)
+
+    fun openCategory(category: Category) {
+        currentCategory.value = category
+        query.value = ""
+    }
+
+    val albums: StateFlow<List<Album>> = currentCategory
+        .flatMapLatest { cat ->
+            query.flatMapLatest { q -> repository.searchInCategory(cat, q) }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val totalCount: StateFlow<Int> = repository.count()
+    val totalCount: StateFlow<Int> = currentCategory
+        .flatMapLatest { repository.countInCategory(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    fun onSearchQueryChange(q: String) { query.value = q }
+    val homeCounts: StateFlow<Map<Category, Int>> = kotlinx.coroutines.flow.combine(
+        repository.countInCategory(Category.BD),
+        repository.countInCategory(Category.MANGA),
+        repository.countInCategory(Category.JEUNESSE)
+    ) { bd, manga, jeunesse ->
+        mapOf(Category.BD to bd, Category.MANGA to manga, Category.JEUNESSE to jeunesse)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     fun save(album: Album, onSaved: () -> Unit = {}) = viewModelScope.launch {
         repository.save(album)
