@@ -125,8 +125,8 @@ class MainActivity : ComponentActivity() {
                         onSave = { album ->
                             collectionViewModel.save(album) { screen = Screen.List }
                         },
-                        onScanIsbn = { screen = Screen.ScanIsbn },
-                        onTakePhoto = { screen = Screen.TakePhoto },
+                        onScanIsbn = { current -> draft = current; screen = Screen.ScanIsbn },
+                        onTakePhoto = { current -> draft = current; screen = Screen.TakePhoto },
                         onLookupIsbn = doLookup,
                         onBack = { screen = Screen.List }
                     )
