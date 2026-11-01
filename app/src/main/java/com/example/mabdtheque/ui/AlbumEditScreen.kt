@@ -28,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,78 +36,42 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.mabdtheque.data.Album
-import com.example.mabdtheque.data.VolumeParser
 import com.example.mabdtheque.lookup.LookupResult
-
-private fun buildDraft(
-    initial: Album?,
-    title: String, albumTitle: String, volume: String, author: String,
-    artist: String, colorist: String, publisher: String, year: String,
-    isbn: String, signed: Boolean, owned: Boolean, notes: String,
-    coverPath: String?
-): Album {
-    val parsed = VolumeParser.parse(volume)
-    return (initial ?: Album()).copy(
-        seriesTitle = title.trim(),
-        albumTitle = albumTitle.trim(),
-        volumeNumber = parsed?.start,
-        volumeEnd = parsed?.end,
-        volumeSuffix = parsed?.suffix ?: "",
-        author = author.trim(),
-        artist = artist.trim(),
-        colorist = colorist.trim(),
-        publisher = publisher.trim(),
-        publicationYear = year.toIntOrNull(),
-        isbn = isbn.trim(),
-        isSigned = signed,
-        owned = owned,
-        notes = notes.trim(),
-        coverPhotoPath = coverPath
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumEditScreen(
     initial: Album?,
     onSave: (Album) -> Unit,
-    onScanIsbn: (Album) -> Unit,
-    onTakePhoto: (Album) -> Unit,
+    onScanIsbn: () -> Unit,
+    onTakePhoto: () -> Unit,
     onLookupIsbn: (String, (LookupResult?) -> Unit) -> Unit,
     onBack: () -> Unit
 ) {
-    var title by rememberSaveable(initial?.id) { mutableStateOf(initial?.seriesTitle ?: "") }
-    var albumTitle by rememberSaveable(initial?.id) { mutableStateOf(initial?.albumTitle ?: "") }
-    var volume by rememberSaveable(initial?.id) {
+    var title by remember { mutableStateOf(initial?.seriesTitle ?: "") }
+    var albumTitle by remember { mutableStateOf(initial?.albumTitle ?: "") }
+    var volume by remember {
         mutableStateOf(
-            VolumeParser.format(
+            com.example.mabdtheque.data.VolumeParser.format(
                 initial?.volumeNumber, initial?.volumeEnd, initial?.volumeSuffix ?: ""
             ) ?: ""
         )
     }
-    var author by rememberSaveable(initial?.id) { mutableStateOf(initial?.author ?: "") }
-    var artist by rememberSaveable(initial?.id) { mutableStateOf(initial?.artist ?: "") }
-    var colorist by rememberSaveable(initial?.id) { mutableStateOf(initial?.colorist ?: "") }
-    var publisher by rememberSaveable(initial?.id) { mutableStateOf(initial?.publisher ?: "") }
-    var year by rememberSaveable(initial?.id) {
+    var author by remember { mutableStateOf(initial?.author ?: "") }
+    var artist by remember { mutableStateOf(initial?.artist ?: "") }
+    var colorist by remember { mutableStateOf(initial?.colorist ?: "") }
+    var publisher by remember { mutableStateOf(initial?.publisher ?: "") }
+    var year by remember {
         mutableStateOf(initial?.publicationYear?.toString() ?: "")
     }
-    var isbn by rememberSaveable(initial?.id) { mutableStateOf(initial?.isbn ?: "") }
-    var signed by rememberSaveable(initial?.id) { mutableStateOf(initial?.isSigned ?: false) }
-    var owned by rememberSaveable(initial?.id) { mutableStateOf(initial?.owned ?: true) }
-    var notes by rememberSaveable(initial?.id) { mutableStateOf(initial?.notes ?: "") }
-    var coverPath by rememberSaveable(initial?.id) { mutableStateOf(initial?.coverPhotoPath) }
-
+    var isbn by remember { mutableStateOf(initial?.isbn ?: "") }
+    var signed by remember { mutableStateOf(initial?.isSigned ?: false) }
+    var owned by remember { mutableStateOf(initial?.owned ?: true) }
     var lookupBusy by remember { mutableStateOf(false) }
     var lookupError by remember { mutableStateOf(false) }
     var pendingResult by remember { mutableStateOf<LookupResult?>(null) }
-
-    val buildCurrent = {
-        buildDraft(
-            initial, title, albumTitle, volume, author, artist, colorist,
-            publisher, year, isbn, signed, owned, notes, coverPath
-        )
-    }
+    var notes by remember { mutableStateOf(initial?.notes ?: "") }
+    var coverPath by remember { mutableStateOf(initial?.coverPhotoPath) }
 
     Scaffold(
         topBar = {
@@ -136,7 +99,7 @@ fun AlbumEditScreen(
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { onScanIsbn(buildCurrent()) }) { Text("Scanner") }
+                OutlinedButton(onClick = onScanIsbn) { Text("Scanner") }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,10 +149,12 @@ fun AlbumEditScreen(
                             style = MaterialTheme.typography.bodySmall)
                     }
                     result.year?.let { y ->
-                        Text("Année : $y", style = MaterialTheme.typography.bodySmall)
+                        Text("Année : $y",
+                            style = MaterialTheme.typography.bodySmall)
                     }
                     result.publisher?.let { p ->
-                        Text("Éditeur : $p", style = MaterialTheme.typography.bodySmall)
+                        Text("Éditeur : $p",
+                            style = MaterialTheme.typography.bodySmall)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
@@ -223,7 +188,7 @@ fun AlbumEditScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                 }
-                OutlinedButton(onClick = { onTakePhoto(buildCurrent()) }) {
+                OutlinedButton(onClick = onTakePhoto) {
                     Text(if (coverPath == null) "Photo de la couverture" else "Reprendre la photo")
                 }
             }
@@ -300,7 +265,27 @@ fun AlbumEditScreen(
             )
 
             Button(
-                onClick = { onSave(buildCurrent()) },
+                onClick = {
+                    onSave(
+                        (initial ?: Album()).copy(
+                            seriesTitle = title.trim(),
+                            albumTitle = albumTitle.trim(),
+                            volumeNumber = com.example.mabdtheque.data.VolumeParser.parse(volume)?.start,
+                            volumeEnd = com.example.mabdtheque.data.VolumeParser.parse(volume)?.end,
+                            volumeSuffix = com.example.mabdtheque.data.VolumeParser.parse(volume)?.suffix ?: "",
+                            author = author.trim(),
+                            artist = artist.trim(),
+                            colorist = colorist.trim(),
+                            publisher = publisher.trim(),
+                            publicationYear = year.toIntOrNull(),
+                            isbn = isbn.trim(),
+                            isSigned = signed,
+                            owned = owned,
+                            notes = notes.trim(),
+                            coverPhotoPath = coverPath
+                        )
+                    )
+                },
                 enabled = title.isNotBlank() || albumTitle.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Enregistrer") }

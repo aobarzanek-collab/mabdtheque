@@ -2,7 +2,6 @@ package com.example.mabdtheque.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,8 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -30,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,42 +58,18 @@ fun AlbumListScreen(
     onDelete: (Album) -> Unit,
     onExportCsv: () -> Unit,
     onImportExcel: () -> Unit,
-    onShowMissing: () -> Unit
+    onShowMissing: () -> Unit,
+    listState: LazyListState
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    // Restaure la position de défilement au retour d'une fiche :
-    // on mémorise le premier album visible avant de quitter la liste.
-    var lastFirstVisible by remember { mutableStateOf(-1) }
-    val firstVisibleIndex by remember {
-        derivedStateOf { listState.firstVisibleItemIndex }
-    }
-    LaunchedEffect(firstVisibleIndex) {
-        if (firstVisibleIndex >= 0) lastFirstVisible = firstVisibleIndex
-    }
-    LaunchedEffect(albums.size) {
-        if (albums.isNotEmpty() && lastFirstVisible in albums.indices) {
-            listState.scrollToItem(lastFirstVisible)
-        }
-    }
-
-    // Index alphabétique : première lettre de chaque album visible
-    val letters by remember(albums) {
-        derivedStateOf {
-            albums.mapNotNull { it.seriesTitle.firstOrNull() }
-                .map { it.uppercaseChar() }
-                .distinct()
-                .sorted()
-        }
-    }
-    // Position de la première occurrence de chaque lettre dans la liste
+    // Index alphabétique : lettres présentes dans la collection triée
     val letterPositions by remember(albums) {
         derivedStateOf {
             val map = LinkedHashMap<Char, Int>()
             albums.forEachIndexed { index, album ->
-                val c = album.seriesTitle.firstOrNull()?.uppercaseChar() ?: '?'
+                val c = album.seriesTitle.trim().firstOrNull()?.uppercaseChar() ?: '?'
                 if (!map.containsKey(c)) map[c] = index
             }
             map
@@ -106,7 +79,7 @@ fun AlbumListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ma BDthèque ($totalCount)") },
+                title = { Text("Ma BDthèque ($totalCount) — v1.3") },
                 actions = {
                     androidx.compose.material3.DropdownMenu(
                         expanded = menuOpen,
@@ -184,7 +157,7 @@ fun AlbumListScreen(
                     }
 
                     // Index alphabétique latéral
-                    if (letters.size > 1) {
+                    if (letterPositions.size > 1) {
                         Column(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -192,7 +165,7 @@ fun AlbumListScreen(
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            letters.forEach { letter ->
+                            letterPositions.keys.forEach { letter ->
                                 Text(
                                     text = letter.toString(),
                                     fontSize = 11.sp,

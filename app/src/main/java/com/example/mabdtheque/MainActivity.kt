@@ -48,12 +48,31 @@ class MainActivity : ComponentActivity() {
             var screen by remember { mutableStateOf<Screen>(Screen.List) }
             var draft by remember { mutableStateOf<Album?>(null) }
 
+            // État de défilement de la liste : vit ici pour survivre
+            // aux allers-retours entre la liste et les autres écrans.
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+            androidx.compose.runtime.saveable.rememberSaveable(
+                stateSaver = androidx.compose.runtime.saveable.Saver(
+                    save = { listOf(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) },
+                    restore = { values ->
+                        @Suppress("UNCHECKED_CAST")
+                        val v = values as List<Int>
+                        kotlinx.coroutines.runBlocking {
+                            listState.scrollToItem(v[0], v[1])
+                        }
+                        true
+                    }
+                )
+            ) { mutableStateOf(true) }
+
             when (val current = screen) {
                 Screen.List -> {
                     AlbumListScreen(
                         albums = albums,
                         totalCount = total,
                         searchQuery = query,
+                        listState = listState,
                         onSearchQueryChange = collectionViewModel::onSearchQueryChange,
                         onAdd = { draft = null; screen = Screen.Edit(null) },
                         onEdit = { draft = it; screen = Screen.Edit(it.id) },
@@ -125,8 +144,8 @@ class MainActivity : ComponentActivity() {
                         onSave = { album ->
                             collectionViewModel.save(album) { screen = Screen.List }
                         },
-                        onScanIsbn = { current -> draft = current; screen = Screen.ScanIsbn },
-                        onTakePhoto = { current -> draft = current; screen = Screen.TakePhoto },
+                        onScanIsbn = { screen = Screen.ScanIsbn },
+                        onTakePhoto = { screen = Screen.TakePhoto },
                         onLookupIsbn = doLookup,
                         onBack = { screen = Screen.List }
                     )
