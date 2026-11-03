@@ -20,6 +20,7 @@ import com.example.mabdtheque.export.CsvExporter
 import com.example.mabdtheque.importer.ImportScreen
 import com.example.mabdtheque.lookup.LookupResult
 import com.example.mabdtheque.scanner.BarcodeScannerScreen
+import com.example.mabdtheque.sync.SyncSettingsScreen
 import com.example.mabdtheque.ui.AlbumEditScreen
 import com.example.mabdtheque.ui.AlbumListScreen
 import com.example.mabdtheque.ui.CollectionViewModel
@@ -37,6 +38,7 @@ private sealed interface Screen {
     data class Edit(val albumId: Long?) : Screen
     data object Import : Screen
     data object Missing : Screen
+    data object Sync : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -81,7 +83,15 @@ class MainActivity : ComponentActivity() {
                 Screen.Home -> {
                     HomeScreen(
                         counts = homeCounts,
-                        onOpen = { screen = Screen.List(it) }
+                        onOpen = { screen = Screen.List(it) },
+                        onSyncSettings = { screen = Screen.Sync }
+                    )
+                }
+
+                Screen.Sync -> {
+                    SyncSettingsScreen(
+                        onSyncNow = { done -> collectionViewModel.sync(done) },
+                        onBack = { screen = Screen.Home }
                     )
                 }
 

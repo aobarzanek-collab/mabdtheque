@@ -31,6 +31,7 @@ data class Album(
     val isSigned: Boolean = false,
     val owned: Boolean = true,
     val category: String = Category.BD.name,
+    val syncId: String = "",
     val coverPhotoPath: String? = null,
     val notes: String = "",
     val createdAt: Long = System.currentTimeMillis()
